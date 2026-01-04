@@ -9,7 +9,7 @@ const LandmanCopilot = () => {
   const [tasks, setTasks] = useState([]);
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [apiUrl] = useState('http://178.128.184.79:3000/api');
+  const [apiUrl] = useState('https://178.128.184.79:3000/api');
   const [formData, setFormData] = useState({
     partyName: '',
     partyRole: 'both',
