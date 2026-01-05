@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { LogOut, Plus, Search, CheckCircle, Clock, AlertCircle, Loader, ChevronDown, X } from 'lucide-react';
+import { LogOut, Plus, Search, CheckCircle, Clock, AlertCircle, Loader } from 'lucide-react';
 
 const LandmanCopilot = () => {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
@@ -11,7 +11,6 @@ const LandmanCopilot = () => {
   const [loading, setLoading] = useState(false);
   const [apiUrl] = useState('https://api.landmancopilot.ai/api');
   const [selectedTask, setSelectedTask] = useState(null);
-  const [expandedTaskId, setExpandedTaskId] = useState(null);
   const [formData, setFormData] = useState({
     partyName: '',
     partyRole: 'both',
@@ -28,7 +27,6 @@ const LandmanCopilot = () => {
     if (token) {
       setIsLoggedIn(true);
       fetchTasks();
-      // Refresh tasks every 10 seconds
       const interval = setInterval(fetchTasks, 10000);
       return () => clearInterval(interval);
     }
@@ -140,16 +138,6 @@ const LandmanCopilot = () => {
     }
   };
 
-  const parseResults = (resultData) => {
-    if (!resultData) return [];
-    try {
-      const data = typeof resultData === 'string' ? JSON.parse(resultData) : resultData;
-      return data.results || [];
-    } catch {
-      return [];
-    }
-  };
-
   if (!isLoggedIn) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 flex items-center justify-center p-4">
@@ -213,7 +201,15 @@ const LandmanCopilot = () => {
 
   // Results Detail View
   if (selectedTask) {
-    const results = parseResults(selectedTask.result_data);
+    let resultData = null;
+    try {
+      resultData = typeof selectedTask.result_data === 'string' 
+        ? JSON.parse(selectedTask.result_data) 
+        : selectedTask.result_data;
+    } catch (e) {
+      resultData = null;
+    }
+
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100">
         <header className="bg-white border-b border-gray-200 shadow-sm">
@@ -269,25 +265,52 @@ const LandmanCopilot = () => {
                 </p>
               </div>
               <div>
-                <span className="text-sm text-gray-500">Results Found</span>
-                <p className="font-bold text-slate-900">{results.length}</p>
+                <span className="text-sm text-gray-500">Status</span>
+                <p className="font-bold text-slate-900">{selectedTask.status}</p>
               </div>
             </div>
 
-            {results.length > 0 ? (
+            {resultData ? (
               <div>
-                <h3 className="text-xl font-bold text-slate-900 mb-4">Search Results</h3>
-                <div className="space-y-3">
-                  {results.map((result, idx) => (
-                    <div key={idx} className="p-4 bg-gray-50 rounded-lg border border-gray-200 hover:border-blue-300 transition">
-                      <p className="text-sm text-gray-700">{result.text || result}</p>
+                <h3 className="text-xl font-bold text-slate-900 mb-4">Search Information</h3>
+                <div className="space-y-4 p-4 bg-gray-50 rounded-lg border border-gray-200">
+                  {resultData.search_query && (
+                    <div>
+                      <p className="text-sm text-gray-500">Search Query</p>
+                      <p className="font-semibold text-slate-900">{resultData.search_query}</p>
                     </div>
-                  ))}
+                  )}
+                  {resultData.url && (
+                    <div>
+                      <p className="text-sm text-gray-500">Search URL</p>
+                      <a href={resultData.url} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline break-all font-mono text-sm">
+                        {resultData.url}
+                      </a>
+                    </div>
+                  )}
+                  {resultData.page_length && (
+                    <div>
+                      <p className="text-sm text-gray-500">Page Size</p>
+                      <p className="font-semibold text-slate-900">{(resultData.page_length / 1024).toFixed(2)} KB</p>
+                    </div>
+                  )}
+                  {resultData.result_count && (
+                    <div>
+                      <p className="text-sm text-gray-500">Results Found</p>
+                      <p className="font-semibold text-slate-900">{resultData.result_count}</p>
+                    </div>
+                  )}
+                  {resultData.timestamp && (
+                    <div>
+                      <p className="text-sm text-gray-500">Processed At</p>
+                      <p className="font-semibold text-slate-900">{new Date(resultData.timestamp).toLocaleString()}</p>
+                    </div>
+                  )}
                 </div>
               </div>
             ) : (
               <div className="text-center py-12">
-                <p className="text-gray-500 text-lg">No results found yet. Still processing...</p>
+                <p className="text-gray-500 text-lg">Search in progress or no results available yet.</p>
               </div>
             )}
           </div>
@@ -298,7 +321,6 @@ const LandmanCopilot = () => {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100">
-      {/* Header */}
       <header className="bg-white border-b border-gray-200 shadow-sm">
         <div className="max-w-6xl mx-auto px-6 py-4 flex justify-between items-center">
           <div>
@@ -315,9 +337,7 @@ const LandmanCopilot = () => {
         </div>
       </header>
 
-      {/* Main Content */}
       <main className="max-w-6xl mx-auto px-6 py-8">
-        {/* Create Task Button */}
         <div className="mb-8">
           <button
             onClick={() => setShowCreateForm(!showCreateForm)}
@@ -328,7 +348,6 @@ const LandmanCopilot = () => {
           </button>
         </div>
 
-        {/* Create Task Form */}
         {showCreateForm && (
           <div className="bg-white rounded-2xl shadow-lg p-8 mb-8 border border-gray-200">
             <h2 className="text-2xl font-bold text-slate-900 mb-6">Create Search Task</h2>
@@ -446,7 +465,6 @@ const LandmanCopilot = () => {
           </div>
         )}
 
-        {/* Tasks List */}
         <div>
           <h2 className="text-2xl font-bold text-slate-900 mb-6 flex items-center gap-2">
             <Search className="w-6 h-6" />
@@ -462,7 +480,7 @@ const LandmanCopilot = () => {
               {tasks.map((task) => (
                 <div
                   key={task.id}
-                  className={`border-l-4 rounded-lg p-6 bg-white shadow-sm hover:shadow-md transition cursor-pointer ${getStatusColor(
+                  className={`border-l-4 rounded-lg p-6 bg-white shadow-sm hover:shadow-md transition ${task.status === 'completed' ? 'cursor-pointer' : ''} ${getStatusColor(
                     task.status
                   )}`}
                   onClick={() => task.status === 'completed' && setSelectedTask(task)}
