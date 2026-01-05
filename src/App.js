@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { LogOut, Plus, Search, CheckCircle, Clock, AlertCircle, Loader } from 'lucide-react';
+import { LogOut, Plus, Search, CheckCircle, Clock, AlertCircle, Loader, ChevronDown, X } from 'lucide-react';
 
 const LandmanCopilot = () => {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
@@ -10,6 +10,8 @@ const LandmanCopilot = () => {
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [loading, setLoading] = useState(false);
   const [apiUrl] = useState('https://api.landmancopilot.ai/api');
+  const [selectedTask, setSelectedTask] = useState(null);
+  const [expandedTaskId, setExpandedTaskId] = useState(null);
   const [formData, setFormData] = useState({
     partyName: '',
     partyRole: 'both',
@@ -26,6 +28,9 @@ const LandmanCopilot = () => {
     if (token) {
       setIsLoggedIn(true);
       fetchTasks();
+      // Refresh tasks every 10 seconds
+      const interval = setInterval(fetchTasks, 10000);
+      return () => clearInterval(interval);
     }
   }, [token]);
 
@@ -135,6 +140,16 @@ const LandmanCopilot = () => {
     }
   };
 
+  const parseResults = (resultData) => {
+    if (!resultData) return [];
+    try {
+      const data = typeof resultData === 'string' ? JSON.parse(resultData) : resultData;
+      return data.results || [];
+    } catch {
+      return [];
+    }
+  };
+
   if (!isLoggedIn) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 flex items-center justify-center p-4">
@@ -192,6 +207,91 @@ const LandmanCopilot = () => {
             </div>
           </div>
         </div>
+      </div>
+    );
+  }
+
+  // Results Detail View
+  if (selectedTask) {
+    const results = parseResults(selectedTask.result_data);
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100">
+        <header className="bg-white border-b border-gray-200 shadow-sm">
+          <div className="max-w-6xl mx-auto px-6 py-4 flex justify-between items-center">
+            <div>
+              <h1 className="text-3xl font-black text-slate-900">Landman</h1>
+              <p className="text-sm text-gray-500">Search Results</p>
+            </div>
+            <button
+              onClick={handleLogout}
+              className="flex items-center gap-2 px-4 py-2 bg-red-50 hover:bg-red-100 text-red-600 rounded-lg transition font-semibold"
+            >
+              <LogOut className="w-4 h-4" />
+              Logout
+            </button>
+          </div>
+        </header>
+
+        <main className="max-w-6xl mx-auto px-6 py-8">
+          <button
+            onClick={() => setSelectedTask(null)}
+            className="mb-6 px-4 py-2 bg-gray-200 hover:bg-gray-300 text-gray-800 rounded-lg font-semibold transition"
+          >
+            ← Back to Tasks
+          </button>
+
+          <div className="bg-white rounded-2xl shadow-lg p-8 mb-8 border border-gray-200">
+            <div className="flex items-start justify-between mb-6">
+              <div>
+                <h2 className="text-3xl font-bold text-slate-900">{selectedTask.party_name}</h2>
+                <p className="text-gray-600 mt-2">{selectedTask.legal_description}</p>
+              </div>
+              <span className={`px-4 py-2 rounded-full font-bold text-sm ${
+                selectedTask.status === 'completed' ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'
+              }`}>
+                {selectedTask.status.toUpperCase()}
+              </span>
+            </div>
+
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8 pb-8 border-b border-gray-200">
+              <div>
+                <span className="text-sm text-gray-500">Role</span>
+                <p className="font-bold text-slate-900">{selectedTask.party_role}</p>
+              </div>
+              <div>
+                <span className="text-sm text-gray-500">Priority</span>
+                <p className="font-bold text-slate-900">{selectedTask.priority}/10</p>
+              </div>
+              <div>
+                <span className="text-sm text-gray-500">Date Range</span>
+                <p className="font-bold text-slate-900">
+                  {new Date(selectedTask.date_from).toLocaleDateString()} - {new Date(selectedTask.date_to).toLocaleDateString()}
+                </p>
+              </div>
+              <div>
+                <span className="text-sm text-gray-500">Results Found</span>
+                <p className="font-bold text-slate-900">{results.length}</p>
+              </div>
+            </div>
+
+            {results.length > 0 ? (
+              <div>
+                <h3 className="text-xl font-bold text-slate-900 mb-4">Search Results</h3>
+                <div className="space-y-3">
+                  {results.map((result, idx) => (
+                    <div key={idx} className="p-4 bg-gray-50 rounded-lg border border-gray-200 hover:border-blue-300 transition">
+                      <p className="text-sm text-gray-700">{result.text || result}</p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ) : (
+              <div className="text-center py-12">
+                <p className="text-gray-500 text-lg">No results found yet. Still processing...</p>
+              </div>
+            )}
+          </div>
+        </main>
       </div>
     );
   }
@@ -362,9 +462,10 @@ const LandmanCopilot = () => {
               {tasks.map((task) => (
                 <div
                   key={task.id}
-                  className={`border-l-4 rounded-lg p-6 bg-white shadow-sm hover:shadow-md transition ${getStatusColor(
+                  className={`border-l-4 rounded-lg p-6 bg-white shadow-sm hover:shadow-md transition cursor-pointer ${getStatusColor(
                     task.status
                   )}`}
+                  onClick={() => task.status === 'completed' && setSelectedTask(task)}
                 >
                   <div className="flex items-start justify-between">
                     <div className="flex-1">
@@ -402,6 +503,9 @@ const LandmanCopilot = () => {
                           </p>
                         </div>
                       </div>
+                      {task.status === 'completed' && (
+                        <p className="text-sm text-blue-600 font-semibold mt-3">Click to view results →</p>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -415,4 +519,3 @@ const LandmanCopilot = () => {
 };
 
 export default LandmanCopilot;
-
